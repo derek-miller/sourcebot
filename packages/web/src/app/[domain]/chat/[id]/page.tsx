@@ -22,7 +22,7 @@ interface PageProps {
 export default async function Page(props: PageProps) {
     const params = await props.params;
     const languageModels = await getConfiguredLanguageModelsInfo();
-    const repos = await getRepos(params.domain);
+    const repos = await getRepos();
     const searchContexts = await getSearchContexts(params.domain);
     const chatInfo = await getChatInfo({ chatId: params.id }, params.domain);
     const session = await auth();
@@ -53,9 +53,10 @@ export default async function Page(props: PageProps) {
     const indexedRepos = repos.filter((repo) => repo.indexedAt !== undefined);
 
     return (
-        <>
+        <div className="flex flex-col h-screen w-screen">
             <TopBar
                 domain={params.domain}
+                homePath={`/${params.domain}/chat`}
             >
                 <div className="flex flex-row gap-2 items-center">
                     <span className="text-muted mx-2 select-none">/</span>
@@ -86,6 +87,6 @@ export default async function Page(props: PageProps) {
                     isChatReadonly={isReadonly}
                 />
             </ResizablePanelGroup>
-        </>
+        </div>
     )
 }

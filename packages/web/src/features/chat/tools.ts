@@ -114,7 +114,7 @@ export const readFilesTool = tool({
                 repository,
                 branch: revision,
                 // @todo(mt): handle multi-tenancy.
-            }, SINGLE_TENANT_ORG_DOMAIN);
+            });
         }));
 
         if (responses.some(isServiceError)) {
@@ -187,7 +187,7 @@ Multiple expressions can be or'd together with or, negated with -, or grouped wi
             contextLines: 3,
             whole: false,
             // @todo(mt): handle multi-tenancy.
-        }, SINGLE_TENANT_ORG_DOMAIN);
+        });
 
         if (isServiceError(response)) {
             return response;
@@ -221,7 +221,7 @@ export const searchReposTool = tool({
         limit: z.number().default(10).describe("Maximum number of repositories to return (default: 10)")
     }),
     execute: async ({ query, limit }) => {
-        const reposResponse = await getRepos(SINGLE_TENANT_ORG_DOMAIN);
+        const reposResponse = await getRepos();
         
         if (isServiceError(reposResponse)) {
             return reposResponse;
@@ -255,7 +255,7 @@ export const listAllReposTool = tool({
     description: `Lists all repositories in the codebase. This provides a complete overview of all available repositories.`,
     inputSchema: z.object({}),
     execute: async () => {
-        const reposResponse = await getRepos(SINGLE_TENANT_ORG_DOMAIN);
+        const reposResponse = await getRepos();
         
         if (isServiceError(reposResponse)) {
             return reposResponse;

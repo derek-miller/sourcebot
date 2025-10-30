@@ -34,7 +34,7 @@ export const findSearchBasedSymbolReferences = async (
                 query,
                 matches: MAX_REFERENCE_COUNT,
                 contextLines: 0,
-            }, domain);
+            });
 
             if (isServiceError(searchResult)) {
                 return searchResult;
@@ -67,7 +67,7 @@ export const findSearchBasedSymbolDefinitions = async (
                 query,
                 matches: MAX_REFERENCE_COUNT,
                 contextLines: 0,
-            }, domain);
+            });
 
             if (isServiceError(searchResult)) {
                 return searchResult;
@@ -80,7 +80,7 @@ export const findSearchBasedSymbolDefinitions = async (
 const parseRelatedSymbolsSearchResponse = (searchResult: SearchResponse) => {
     const parser = searchResponseSchema.transform(async ({ files }) => ({
         stats: {
-            matchCount: searchResult.stats.matchCount,
+            matchCount: searchResult.stats.actualMatchCount,
         },
         files: files.flatMap((file) => {
             const chunks = file.chunks;

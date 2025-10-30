@@ -1,7 +1,6 @@
 // @NOTE : Please keep this file in sync with @sourcebot/mcp/src/types.ts
 import {
     fileSourceResponseSchema,
-    listRepositoriesResponseSchema,
     locationSchema,
     searchRequestSchema,
     searchResponseSchema,
@@ -9,6 +8,7 @@ import {
     fileSourceRequestSchema,
     symbolSchema,
     repositoryInfoSchema,
+    searchStatsSchema,
 } from "./schemas";
 import { z } from "zod";
 
@@ -19,11 +19,9 @@ export type SearchResultFile = SearchResponse["files"][number];
 export type SearchResultChunk = SearchResultFile["chunks"][number];
 export type SearchSymbol = z.infer<typeof symbolSchema>;
 
-export type ListRepositoriesResponse = z.infer<typeof listRepositoriesResponseSchema>;
-export type Repository = ListRepositoriesResponse["repos"][number];
-
 export type FileSourceRequest = z.infer<typeof fileSourceRequestSchema>;
 export type FileSourceResponse = z.infer<typeof fileSourceResponseSchema>;
 
 export type RepositoryInfo = z.infer<typeof repositoryInfoSchema>;
 export type SourceRange = z.infer<typeof rangeSchema>;
+export type SearchStats = z.infer<typeof searchStatsSchema>;

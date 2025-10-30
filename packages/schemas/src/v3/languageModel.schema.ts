@@ -1157,6 +1157,60 @@ const schema = {
             }
           },
           "additionalProperties": false
+        },
+        "queryParams": {
+          "type": "object",
+          "description": "Optional query parameters to include in the request url.",
+          "patternProperties": {
+            "^[!#$%&'*+\\-.^_`|~0-9A-Za-z]+$": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secret": {
+                          "type": "string",
+                          "description": "The name of the secret that contains the token."
+                        }
+                      },
+                      "required": [
+                        "secret"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "env": {
+                          "type": "string",
+                          "description": "The name of the environment variable that contains the token. Only supported in declarative connection configs."
+                        }
+                      },
+                      "required": [
+                        "env"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "reasoningTag": {
+          "type": "string",
+          "description": "The name of the XML tag to extract reasoning from (without angle brackets). Defaults to `think`.",
+          "default": "think",
+          "examples": [
+            "think",
+            "thinking",
+            "reasoning"
+          ]
         }
       },
       "required": [
@@ -2532,6 +2586,60 @@ const schema = {
             }
           },
           "additionalProperties": false
+        },
+        "queryParams": {
+          "type": "object",
+          "description": "Optional query parameters to include in the request url.",
+          "patternProperties": {
+            "^[!#$%&'*+\\-.^_`|~0-9A-Za-z]+$": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secret": {
+                          "type": "string",
+                          "description": "The name of the secret that contains the token."
+                        }
+                      },
+                      "required": [
+                        "secret"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "env": {
+                          "type": "string",
+                          "description": "The name of the environment variable that contains the token. Only supported in declarative connection configs."
+                        }
+                      },
+                      "required": [
+                        "env"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "reasoningTag": {
+          "type": "string",
+          "description": "The name of the XML tag to extract reasoning from (without angle brackets). Defaults to `think`.",
+          "default": "think",
+          "examples": [
+            "think",
+            "thinking",
+            "reasoning"
+          ]
         }
       },
       "required": [

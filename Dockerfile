@@ -185,7 +185,6 @@ ENV DATA_DIR=/data
 ENV DATA_CACHE_DIR=$DATA_DIR/.sourcebot
 ENV DATABASE_DATA_DIR=$DATA_CACHE_DIR/db
 ENV REDIS_DATA_DIR=$DATA_CACHE_DIR/redis
-ENV DATABASE_URL="postgresql://postgres@localhost:5432/sourcebot"
 ENV REDIS_URL="redis://localhost:6379"
 ENV SRC_TENANT_ENFORCEMENT_MODE=strict
 ENV SOURCEBOT_PUBLIC_KEY_PATH=/app/public.pem
@@ -234,6 +233,9 @@ COPY --from=shared-libs-builder /app/packages/shared ./packages/shared
 # Configure dependencies
 RUN apk add --no-cache git ca-certificates bind-tools tini jansson wget supervisor uuidgen curl perl jq redis postgresql postgresql-contrib openssl util-linux unzip
 
+# Fixes git "dubious ownership" issues when the volume is mounted with different permissions to the container.
+RUN git config --global safe.directory "*"
+
 # Configure the database
 RUN mkdir -p /run/postgresql && \
     chown -R postgres:postgres /run/postgresql && \
@@ -244,8 +246,6 @@ COPY prefix-output.sh ./prefix-output.sh
 RUN chmod +x ./prefix-output.sh
 COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
-
-COPY default-config.json .
 
 EXPOSE 3000
 ENV PORT=3000

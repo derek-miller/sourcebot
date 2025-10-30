@@ -452,6 +452,36 @@ export interface OpenAICompatibleLanguageModel {
    */
   baseUrl: string;
   headers?: LanguageModelHeaders;
+  queryParams?: LanguageModelQueryParams;
+  /**
+   * The name of the XML tag to extract reasoning from (without angle brackets). Defaults to `think`.
+   */
+  reasoningTag?: string;
+}
+/**
+ * Optional query parameters to include in the request url.
+ */
+export interface LanguageModelQueryParams {
+  /**
+   * This interface was referenced by `LanguageModelQueryParams`'s JSON-Schema definition
+   * via the `patternProperty` "^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$".
+   */
+  [k: string]:
+    | string
+    | (
+        | {
+            /**
+             * The name of the secret that contains the token.
+             */
+            secret: string;
+          }
+        | {
+            /**
+             * The name of the environment variable that contains the token. Only supported in declarative connection configs.
+             */
+            env: string;
+          }
+      );
 }
 export interface OpenRouterLanguageModel {
   /**

@@ -15,13 +15,10 @@ export const env = createEnv({
     server: {
         // Zoekt
         ZOEKT_WEBSERVER_URL: z.string().url().default("http://localhost:6070"),
-        SHARD_MAX_MATCH_COUNT: numberSchema.default(10000),
-        TOTAL_MAX_MATCH_COUNT: numberSchema.default(100000),
-        ZOEKT_MAX_WALL_TIME_MS: numberSchema.default(10000),
         
         // Auth
         FORCE_ENABLE_ANONYMOUS_ACCESS: booleanSchema.default('false'),
-        
+
         AUTH_SECRET: z.string(),
         AUTH_URL: z.string().url(),
         AUTH_CREDENTIALS_LOGIN_ENABLED: booleanSchema.default('true'),
@@ -88,9 +85,9 @@ export const env = createEnv({
         SOURCEBOT_EE_AUDIT_LOGGING_ENABLED: booleanSchema.default('true'),
 
         // GitHub app for review agent
-        GITHUB_APP_ID: z.string().optional(),
-        GITHUB_APP_WEBHOOK_SECRET: z.string().optional(),
-        GITHUB_APP_PRIVATE_KEY_PATH: z.string().optional(),
+        GITHUB_REVIEW_AGENT_APP_ID: z.string().optional(),
+        GITHUB_REVIEW_AGENT_APP_WEBHOOK_SECRET: z.string().optional(),
+        GITHUB_REVIEW_AGENT_APP_PRIVATE_KEY_PATH: z.string().optional(),
         REVIEW_AGENT_API_KEY: z.string().optional(),
         REVIEW_AGENT_LOGGING_ENABLED: booleanSchema.default('true'),
         REVIEW_AGENT_AUTO_REVIEW_ENABLED: booleanSchema.default('false'),
@@ -133,9 +130,13 @@ export const env = createEnv({
 
         SOURCEBOT_DEMO_EXAMPLES_PATH: z.string().optional(),
 
+        // Experimental Environment Variables
+        // @note: These environment variables are subject to change at any time and are not garunteed to be backwards compatible.
+        EXPERIMENT_DISABLE_API_KEY_CREATION_FOR_NON_ADMIN_USERS: booleanSchema.default('false'),
         EXPERIMENT_SELF_SERVE_REPO_INDEXING_ENABLED: booleanSchema.default('false'),
         // @NOTE: Take care to update actions.ts when changing the name of this.
         EXPERIMENT_SELF_SERVE_REPO_INDEXING_GITHUB_TOKEN: z.string().optional(),
+        EXPERIMENT_EE_PERMISSION_SYNC_ENABLED: booleanSchema.default('false'),
     },
     // @NOTE: Please make sure of the following:
     // - Make sure you destructure all client variables in
@@ -147,7 +148,6 @@ export const env = createEnv({
 
         // Misc
         NEXT_PUBLIC_SOURCEBOT_VERSION: z.string().default('unknown'),
-        NEXT_PUBLIC_POLLING_INTERVAL_MS: numberSchema.default(5000),
 
         NEXT_PUBLIC_SOURCEBOT_CLOUD_ENVIRONMENT: z.enum(SOURCEBOT_CLOUD_ENVIRONMENT).optional(),
 
@@ -158,7 +158,6 @@ export const env = createEnv({
     experimental__runtimeEnv: {
         NEXT_PUBLIC_POSTHOG_PAPIK: process.env.NEXT_PUBLIC_POSTHOG_PAPIK,
         NEXT_PUBLIC_SOURCEBOT_VERSION: process.env.NEXT_PUBLIC_SOURCEBOT_VERSION,
-        NEXT_PUBLIC_POLLING_INTERVAL_MS: process.env.NEXT_PUBLIC_POLLING_INTERVAL_MS,
         NEXT_PUBLIC_SOURCEBOT_CLOUD_ENVIRONMENT: process.env.NEXT_PUBLIC_SOURCEBOT_CLOUD_ENVIRONMENT,
         NEXT_PUBLIC_LANGFUSE_PUBLIC_KEY: process.env.NEXT_PUBLIC_LANGFUSE_PUBLIC_KEY,
         NEXT_PUBLIC_LANGFUSE_BASE_URL: process.env.NEXT_PUBLIC_LANGFUSE_BASE_URL,

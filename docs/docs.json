@@ -46,6 +46,7 @@
                             "docs/features/code-navigation",
                             "docs/features/analytics",
                             "docs/features/mcp-server",
+                            "docs/features/permission-syncing",
                             {
                                 "group": "Agents",
                                 "tag": "experimental",
@@ -68,6 +69,8 @@
                                     "docs/connections/gitlab",
                                     "docs/connections/bitbucket-cloud",
                                     "docs/connections/bitbucket-data-center",
+                                    "docs/connections/ado-cloud",
+                                    "docs/connections/ado-server",
                                     "docs/connections/gitea",
                                     "docs/connections/gerrit",
                                     "docs/connections/generic-git-host",
@@ -106,6 +109,11 @@
                 "anchor": "Changelog",
                 "href": "https://sourcebot.dev/changelog",
                 "icon": "list-check"
+            },
+            {
+                "anchor": "Roadmap",
+                "href": "https://github.com/sourcebot-dev/sourcebot/issues/459",
+                "icon": "map"
             },
             {
                 "anchor": "Support",

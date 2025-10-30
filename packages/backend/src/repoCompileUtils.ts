@@ -4,40 +4,40 @@ import { getGitLabReposFromConfig } from "./gitlab.js";
 import { getGiteaReposFromConfig } from "./gitea.js";
 import { getGerritReposFromConfig } from "./gerrit.js";
 import { BitbucketRepository, getBitbucketReposFromConfig } from "./bitbucket.js";
+import { getAzureDevOpsReposFromConfig } from "./azuredevops.js";
 import { SchemaRestRepository as BitbucketServerRepository } from "@coderabbitai/bitbucket/server/openapi";
 import { SchemaRepository as BitbucketCloudRepository } from "@coderabbitai/bitbucket/cloud/openapi";
 import { Prisma, PrismaClient } from '@sourcebot/db';
 import { WithRequired } from "./types.js"
 import { marshalBool } from "./utils.js";
 import { createLogger } from '@sourcebot/logger';
-import { BitbucketConnectionConfig, GerritConnectionConfig, GiteaConnectionConfig, GitlabConnectionConfig, GenericGitHostConnectionConfig } from '@sourcebot/schemas/v3/connection.type';
-import { RepoMetadata } from './types.js';
+import { BitbucketConnectionConfig, GerritConnectionConfig, GiteaConnectionConfig, GitlabConnectionConfig, GenericGitHostConnectionConfig, AzureDevOpsConnectionConfig } from '@sourcebot/schemas/v3/connection.type';
+import { ProjectVisibility } from "azure-devops-node-api/interfaces/CoreInterfaces.js";
 import path from 'path';
 import { glob } from 'glob';
 import { getOriginUrl, isPathAValidGitRepoRoot, isUrlAValidGitRepo } from './git.js';
 import assert from 'assert';
 import GitUrlParse from 'git-url-parse';
+import { RepoMetadata } from '@sourcebot/shared';
 
 export type RepoData = WithRequired<Prisma.RepoCreateInput, 'connections'>;
 
 const logger = createLogger('repo-compile-utils');
+
+type CompileResult = {
+    repoData: RepoData[],
+    warnings: string[],
+}
 
 export const compileGithubConfig = async (
     config: GithubConnectionConfig,
     connectionId: number,
     orgId: number,
     db: PrismaClient,
-    abortController: AbortController): Promise<{
-        repoData: RepoData[],
-        notFound: {
-            users: string[],
-            orgs: string[],
-            repos: string[],
-        }
-    }> => {
+    abortController: AbortController): Promise<CompileResult> => {
     const gitHubReposResult = await getGitHubReposFromConfig(config, orgId, db, abortController.signal);
-    const gitHubRepos = gitHubReposResult.validRepos;
-    const notFound = gitHubReposResult.notFound;
+    const gitHubRepos = gitHubReposResult.repos;
+    const warnings = gitHubReposResult.warnings;
 
     const hostUrl = config.url ?? 'https://github.com';
     const repoNameRoot = new URL(hostUrl)
@@ -48,6 +48,7 @@ export const compileGithubConfig = async (
         const repoDisplayName = repo.full_name;
         const repoName = path.join(repoNameRoot, repoDisplayName);
         const cloneUrl = new URL(repo.clone_url!);
+        const isPublic = repo.private === false;
 
         logger.debug(`Found github repo ${repoDisplayName} with webUrl: ${repo.html_url}`);
 
@@ -62,6 +63,7 @@ export const compileGithubConfig = async (
             imageUrl: repo.owner.avatar_url,
             isFork: repo.fork,
             isArchived: !!repo.archived,
+            isPublic: isPublic,
             org: {
                 connect: {
                     id: orgId,
@@ -83,7 +85,7 @@ export const compileGithubConfig = async (
                     'zoekt.github-forks': (repo.forks_count ?? 0).toString(),
                     'zoekt.archived': marshalBool(repo.archived),
                     'zoekt.fork': marshalBool(repo.fork),
-                    'zoekt.public': marshalBool(repo.private === false),
+                    'zoekt.public': marshalBool(isPublic),
                     'zoekt.display-name': repoDisplayName,
                 },
                 branches: config.revisions?.branches ?? undefined,
@@ -96,7 +98,7 @@ export const compileGithubConfig = async (
 
     return {
         repoData: repos,
-        notFound,
+        warnings,
     };
 }
 
@@ -104,11 +106,11 @@ export const compileGitlabConfig = async (
     config: GitlabConnectionConfig,
     connectionId: number,
     orgId: number,
-    db: PrismaClient) => {
+    db: PrismaClient): Promise<CompileResult> => {
 
     const gitlabReposResult = await getGitLabReposFromConfig(config, orgId, db);
-    const gitlabRepos = gitlabReposResult.validRepos;
-    const notFound = gitlabReposResult.notFound;
+    const gitlabRepos = gitlabReposResult.repos;
+    const warnings = gitlabReposResult.warnings;
 
     const hostUrl = config.url ?? 'https://gitlab.com';
     const repoNameRoot = new URL(hostUrl)
@@ -119,6 +121,7 @@ export const compileGitlabConfig = async (
         const projectUrl = `${hostUrl}/${project.path_with_namespace}`;
         const cloneUrl = new URL(project.http_url_to_repo);
         const isFork = project.forked_from_project !== undefined;
+        const isPublic = project.visibility === 'public';
         const repoDisplayName = project.path_with_namespace;
         const repoName = path.join(repoNameRoot, repoDisplayName);
         // project.avatar_url is not directly accessible with tokens; use the avatar API endpoint if available
@@ -137,6 +140,7 @@ export const compileGitlabConfig = async (
             displayName: repoDisplayName,
             imageUrl: avatarUrl,
             isFork: isFork,
+            isPublic: isPublic,
             isArchived: !!project.archived,
             org: {
                 connect: {
@@ -157,7 +161,7 @@ export const compileGitlabConfig = async (
                     'zoekt.gitlab-forks': (project.forks_count ?? 0).toString(),
                     'zoekt.archived': marshalBool(project.archived),
                     'zoekt.fork': marshalBool(isFork),
-                    'zoekt.public': marshalBool(project.private === false),
+                    'zoekt.public': marshalBool(isPublic),
                     'zoekt.display-name': repoDisplayName,
                 },
                 branches: config.revisions?.branches ?? undefined,
@@ -170,7 +174,7 @@ export const compileGitlabConfig = async (
 
     return {
         repoData: repos,
-        notFound,
+        warnings,
     };
 }
 
@@ -178,11 +182,11 @@ export const compileGiteaConfig = async (
     config: GiteaConnectionConfig,
     connectionId: number,
     orgId: number,
-    db: PrismaClient) => {
+    db: PrismaClient): Promise<CompileResult> => {
 
     const giteaReposResult = await getGiteaReposFromConfig(config, orgId, db);
-    const giteaRepos = giteaReposResult.validRepos;
-    const notFound = giteaReposResult.notFound;
+    const giteaRepos = giteaReposResult.repos;
+    const warnings = giteaReposResult.warnings;
 
     const hostUrl = config.url ?? 'https://gitea.com';
     const repoNameRoot = new URL(hostUrl)
@@ -195,6 +199,7 @@ export const compileGiteaConfig = async (
         cloneUrl.host = configUrl.host
         const repoDisplayName = repo.full_name!;
         const repoName = path.join(repoNameRoot, repoDisplayName);
+        const isPublic = repo.internal === false && repo.private === false;
 
         logger.debug(`Found gitea repo ${repoDisplayName} with webUrl: ${repo.html_url}`);
 
@@ -208,6 +213,7 @@ export const compileGiteaConfig = async (
             displayName: repoDisplayName,
             imageUrl: repo.owner?.avatar_url,
             isFork: repo.fork!,
+            isPublic: isPublic,
             isArchived: !!repo.archived,
             org: {
                 connect: {
@@ -226,7 +232,7 @@ export const compileGiteaConfig = async (
                     'zoekt.name': repoName,
                     'zoekt.archived': marshalBool(repo.archived),
                     'zoekt.fork': marshalBool(repo.fork!),
-                    'zoekt.public': marshalBool(repo.internal === false && repo.private === false),
+                    'zoekt.public': marshalBool(isPublic),
                     'zoekt.display-name': repoDisplayName,
                 },
                 branches: config.revisions?.branches ?? undefined,
@@ -239,14 +245,14 @@ export const compileGiteaConfig = async (
 
     return {
         repoData: repos,
-        notFound,
+        warnings,
     };
 }
 
 export const compileGerritConfig = async (
     config: GerritConnectionConfig,
     connectionId: number,
-    orgId: number) => {
+    orgId: number): Promise<CompileResult> => {
 
     const gerritRepos = await getGerritReposFromConfig(config);
     const hostUrl = config.url;
@@ -320,11 +326,7 @@ export const compileGerritConfig = async (
 
     return {
         repoData: repos,
-        notFound: {
-            users: [],
-            orgs: [],
-            repos: [],
-        }
+        warnings: [],
     };
 }
 
@@ -332,11 +334,11 @@ export const compileBitbucketConfig = async (
     config: BitbucketConnectionConfig,
     connectionId: number,
     orgId: number,
-    db: PrismaClient) => {
+    db: PrismaClient): Promise<CompileResult> => {
 
     const bitbucketReposResult = await getBitbucketReposFromConfig(config, orgId, db);
-    const bitbucketRepos = bitbucketReposResult.validRepos;
-    const notFound = bitbucketReposResult.notFound;
+    const bitbucketRepos = bitbucketReposResult.repos;
+    const warnings = bitbucketReposResult.warnings;
 
     const hostUrl = config.url ?? 'https://bitbucket.org';
     const repoNameRoot = new URL(hostUrl)
@@ -409,6 +411,7 @@ export const compileBitbucketConfig = async (
             name: repoName,
             displayName: displayName,
             isFork: isFork,
+            isPublic: isPublic,
             isArchived: isArchived,
             org: {
                 connect: {
@@ -440,7 +443,7 @@ export const compileBitbucketConfig = async (
 
     return {
         repoData: repos,
-        notFound,
+        warnings,
     };
 }
 
@@ -448,7 +451,7 @@ export const compileGenericGitHostConfig = async (
     config: GenericGitHostConnectionConfig,
     connectionId: number,
     orgId: number,
-) => {
+): Promise<CompileResult> => {
     const configUrl = new URL(config.url);
     if (configUrl.protocol === 'file:') {
         return compileGenericGitHostConfig_file(config, orgId, connectionId);
@@ -466,7 +469,7 @@ export const compileGenericGitHostConfig_file = async (
     config: GenericGitHostConnectionConfig,
     orgId: number,
     connectionId: number,
-) => {
+): Promise<CompileResult> => {
     const configUrl = new URL(config.url);
     assert(configUrl.protocol === 'file:', 'config.url must be a file:// URL');
 
@@ -476,28 +479,24 @@ export const compileGenericGitHostConfig_file = async (
     });
 
     const repos: RepoData[] = [];
-    const notFound: {
-        users: string[],
-        orgs: string[],
-        repos: string[],
-    } = {
-        users: [],
-        orgs: [],
-        repos: [],
-    };
+    const warnings: string[] = [];
     
     await Promise.all(repoPaths.map(async (repoPath) => {
-        const isGitRepo = await isPathAValidGitRepoRoot(repoPath);
+        const isGitRepo = await isPathAValidGitRepoRoot({
+            path: repoPath,
+        });
         if (!isGitRepo) {
-            logger.warn(`Skipping ${repoPath} - not a git repository.`);
-            notFound.repos.push(repoPath);
+            const warning = `Skipping ${repoPath} - not a git repository.`;
+            logger.warn(warning);
+            warnings.push(warning);
             return;
         }
 
         const origin = await getOriginUrl(repoPath);
         if (!origin) {
-            logger.warn(`Skipping ${repoPath} - remote.origin.url not found in git config.`);
-            notFound.repos.push(repoPath);
+            const warning = `Skipping ${repoPath} - remote.origin.url not found in git config.`;
+            logger.warn(warning);
+            warnings.push(warning);
             return;
         }
 
@@ -540,35 +539,30 @@ export const compileGenericGitHostConfig_file = async (
 
     return {
         repoData: repos,
-        notFound,
+        warnings,
     }
 }
+
 
 export const compileGenericGitHostConfig_url = async (
     config: GenericGitHostConnectionConfig,
     orgId: number,
     connectionId: number,
-) => {
+): Promise<CompileResult> => {
     const remoteUrl = new URL(config.url);
     assert(remoteUrl.protocol === 'http:' || remoteUrl.protocol === 'https:', 'config.url must be a http:// or https:// URL');
 
-    const notFound: {
-        users: string[],
-        orgs: string[],
-        repos: string[],
-    } = {
-        users: [],
-        orgs: [],
-        repos: [],
-    };
+    const warnings: string[] = [];
 
     // Validate that we are dealing with a valid git repo.
     const isGitRepo = await isUrlAValidGitRepo(remoteUrl.toString());
     if (!isGitRepo) {
-        notFound.repos.push(remoteUrl.toString());
+        const warning = `Skipping ${remoteUrl.toString()} - not a git repository.`;
+        logger.warn(warning);
+        warnings.push(warning);
         return {
             repoData: [],
-            notFound,
+            warnings,
         }
     }
 
@@ -603,6 +597,88 @@ export const compileGenericGitHostConfig_url = async (
 
     return {
         repoData: [repo],
-        notFound,
+        warnings,
     }
+}
+
+export const compileAzureDevOpsConfig = async (
+    config: AzureDevOpsConnectionConfig,
+    connectionId: number,
+    orgId: number,
+    db: PrismaClient): Promise<CompileResult> => {
+
+    const azureDevOpsReposResult = await getAzureDevOpsReposFromConfig(config, orgId, db);
+    const azureDevOpsRepos = azureDevOpsReposResult.repos;
+    const warnings = azureDevOpsReposResult.warnings;
+
+    const hostUrl = config.url ?? 'https://dev.azure.com';
+    const repoNameRoot = new URL(hostUrl)
+        .toString()
+        .replace(/^https?:\/\//, '');
+
+    const repos = azureDevOpsRepos.map((repo) => {
+        if (!repo.project) {
+            throw new Error(`No project found for repository ${repo.name}`);
+        }
+        
+        const repoDisplayName = `${repo.project.name}/${repo.name}`;
+        const repoName = path.join(repoNameRoot, repoDisplayName);
+        const isPublic = repo.project.visibility === ProjectVisibility.Public;
+        
+        if (!repo.remoteUrl) {
+            throw new Error(`No remoteUrl found for repository ${repoDisplayName}`);
+        }
+        if (!repo.id) {
+            throw new Error(`No id found for repository ${repoDisplayName}`);
+        }
+        
+        // Construct web URL for the repository
+        const webUrl = repo.webUrl || `${hostUrl}/${repo.project.name}/_git/${repo.name}`;
+
+        logger.debug(`Found Azure DevOps repo ${repoDisplayName} with webUrl: ${webUrl}`);
+
+        const record: RepoData = {
+            external_id: repo.id.toString(),
+            external_codeHostType: 'azuredevops',
+            external_codeHostUrl: hostUrl,
+            cloneUrl: webUrl,
+            webUrl: webUrl,
+            name: repoName,
+            displayName: repoDisplayName,
+            imageUrl: null,
+            isFork: !!repo.isFork,
+            isArchived: false,
+            isPublic: isPublic,
+            org: {
+                connect: {
+                    id: orgId,
+                },
+            },
+            connections: {
+                create: {
+                    connectionId: connectionId,
+                }
+            },
+            metadata: {
+                gitConfig: {
+                    'zoekt.web-url-type': 'azuredevops',
+                    'zoekt.web-url': webUrl,
+                    'zoekt.name': repoName,
+                    'zoekt.archived': marshalBool(false),
+                    'zoekt.fork': marshalBool(!!repo.isFork),
+                    'zoekt.public': marshalBool(isPublic),
+                    'zoekt.display-name': repoDisplayName,
+                },
+                branches: config.revisions?.branches ?? undefined,
+                tags: config.revisions?.tags ?? undefined,
+            } satisfies RepoMetadata,
+        };
+
+        return record;
+    })
+
+    return {
+        repoData: repos,
+        warnings,
+    };
 }
